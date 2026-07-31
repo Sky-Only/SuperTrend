@@ -3,7 +3,6 @@ SuperTrend 参数网格搜索优化（细粒度）
 乘数 M: 0.1 ~ 10.0, 步长 0.1
 周期 N: 1 ~ 100,   步长 1
 """
-import time
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -15,6 +14,7 @@ plt.rcParams["font.sans-serif"] = ["Heiti SC", "STHeiti", "Arial Unicode MS", "D
 plt.rcParams["axes.unicode_minus"] = False
 
 from backtest import load_data
+from tqdm import tqdm
 
 # ============================================================
 # 搜索范围
@@ -206,9 +206,9 @@ def grid_search_fast(name, filepath):
 
     results = []
     total = len(PERIODS) * len(MULTIPLIERS)
-    t0 = time.time()
 
-    for count, period in enumerate(PERIODS):
+    pbar = tqdm(total=total, desc=f"  {name}", unit="组", ncols=80)
+    for period in PERIODS:
         atr = atr_cache[period]
         mid = (high + low) / 2
         for mult in MULTIPLIERS:
@@ -226,14 +226,10 @@ def grid_search_fast(name, filepath):
                 "sharpe": sharpe,
                 "calmar": calmar,
             })
-        # 进度
-        done = (count + 1) * len(MULTIPLIERS)
-        if (count + 1) % 10 == 0:
-            elapsed = time.time() - t0
-            eta = elapsed / done * (total - done)
-            print(f"  周期 {period:3d}/100 完成, 已耗时 {elapsed:.0f}s, 预计剩余 {eta:.0f}s")
+            pbar.update(1)
+    pbar.close()
 
-    print(f"  搜索完成! 总耗时 {time.time()-t0:.1f}s")
+    print(f"  搜索完成! 共测试 {total} 组参数")
     return df_raw, pd.DataFrame(results)
 
 

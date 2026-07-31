@@ -1014,6 +1014,7 @@ dependencies = [
     { name = "matplotlib" },
     { name = "pandas" },
     { name = "pyarrow" },
+    { name = "tqdm" },
     { name = "tushare" },
 ]
 
@@ -1022,6 +1023,7 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.11.1" },
     { name = "pandas", specifier = ">=3.0.5" },
     { name = "pyarrow", specifier = ">=25.0.0" },
+    { name = "tqdm", specifier = ">=4.70.0" },
     { name = "tushare", specifier = ">=1.4.29" },
 ]
 
