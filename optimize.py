@@ -47,7 +47,7 @@ import metrics as mt
 # 搜索范围
 # ============================================================
 PERIODS = list(range(5, 100))                              # 1 ~ 500
-MULTIPLIERS = [round(x * 0.1, 1) for x in range(5, 100)]   # 0.1 ~ 50.0
+MULTIPLIERS = [round(x * 0.1, 1) for x in range(5, 50)]   # 0.1 ~ 50.0
 
 DATA = {
     "沪深300": "沪深300_10年日线.parquet",
@@ -803,7 +803,7 @@ def plot_heatmaps(all_results, output_dir="heatmaps"):
 # 最优参数净值曲线
 
 def plot_best_equity(all_results, all_best):
-    """最优参数净值曲线，含完整绩效指标"""
+    """最优参数净值曲线（含标的自身 buy & hold 对比），含完整绩效指标"""
     from backtest import calc_super_trend, run_backtest
 
     fig, axes = plt.subplots(3, 1, figsize=(18, 15))
@@ -822,9 +822,14 @@ def plot_best_equity(all_results, all_best):
         peak = np.maximum.accumulate(vals)
         dd = (vals - peak) / peak * 100
 
+        # 标的自身 buy & hold 净值（按收盘价归一化）
+        close_vals = raw["close"].values
+        benchmark = close_vals / close_vals[0]
+
         ax = axes[idx]
-        ax.plot(dates, vals, color=color, linewidth=0.9, label="净值")
-        ax.axhline(1.0, color="gray", linestyle="--", linewidth=0.5)
+        ax.plot(dates, benchmark, color="gray", linewidth=0.6, linestyle="--", alpha=0.7, label="标的 Buy&Hold")
+        ax.plot(dates, vals, color=color, linewidth=0.9, label="策略净值")
+        ax.axhline(1.0, color="black", linestyle=":", linewidth=0.5)
         ax.set_ylabel("净值", fontsize=10)
         ax.legend(loc="upper left", fontsize=8)
         ax.grid(True, alpha=0.3)
@@ -835,11 +840,13 @@ def plot_best_equity(all_results, all_best):
         ax2.set_ylabel("回撤 %", color="red", fontsize=9)
         ax2.tick_params(axis="y", colors="red")
 
-        # 构建完整指标文本
+        # 标的 buy & hold 收益
+        bench_ret = benchmark[-1] - 1
         total_ret = (vals[-1] - 1)
         metrics_text = (
-            f"总收益={total_ret:.1%}  年化={best['annual_return']:.1%}  夏普={best['sharpe']:.3f}  "
+            f"策略: 总收益={total_ret:.1%}  年化={best['annual_return']:.1%}  夏普={best['sharpe']:.3f}  "
             f"最大回撤={best['max_dd']:.1%}  回撤持续={int(best.get('max_dd_days', 0))}天\n"
+            f"标的: 总收益={bench_ret:.1%}  "
             f"波动率={best.get('daily_vol', 0):.1%}  交易={int(best.get('n_trades', 0))}笔  "
             f"胜率={best.get('win_rate', 0):.1%}  盈亏比={best.get('profit_factor', 0):.2f}  "
             f"平均持仓={best.get('avg_hold_days', 0):.1f}天"
@@ -851,7 +858,83 @@ def plot_best_equity(all_results, all_best):
     plt.tight_layout()
     plt.savefig("optimize_equity.png", dpi=300, bbox_inches="tight")
     print("净值曲线已保存: optimize_equity.png")
-    plt.close()
+    plt.close(fig)
+
+
+def plot_strategy_vs_benchmark(all_results, all_best):
+    """策略 vs 标的对比图：左轴净值曲线，右轴回撤，独立一张图"""
+    from backtest import calc_super_trend, run_backtest
+
+    names = list(all_results.keys())
+    n = len(names)
+    colors = ["#e74c3c", "#2980b9", "#f39c12"]
+
+    fig, axes = plt.subplots(n, 1, figsize=(18, 5 * n))
+
+    for idx, (name, color) in enumerate(zip(names, colors)):
+        best = all_best[name]
+        raw = all_results[name]["raw"]
+        period, mult = int(best["period"]), float(best["multiplier"])
+
+        df = calc_super_trend(raw, period=period, multiplier=mult)
+        trades, eq_curve, _ = run_backtest(df, capital=CAPITAL)
+
+        dates = [e["trade_date"] for e in eq_curve]
+        vals = np.array([e["equity"] for e in eq_curve]) / CAPITAL
+        peak = np.maximum.accumulate(vals)
+        strategy_dd = (vals - peak) / peak * 100
+
+        # 标的 buy & hold
+        close_vals = raw["close"].values
+        benchmark = close_vals / close_vals[0]
+        bench_peak = np.maximum.accumulate(benchmark)
+        bench_dd = (benchmark - bench_peak) / bench_peak * 100
+
+        ax = axes[idx]
+
+        # 左轴：净值
+        ax.plot(dates, benchmark, color="gray", linewidth=0.8, linestyle="--", alpha=0.6, label="标的 Buy&Hold")
+        ax.plot(dates, vals, color=color, linewidth=1.0, label=f"策略 (N={period}, M={mult:.1f})")
+        ax.axhline(1.0, color="black", linestyle=":", linewidth=0.5)
+        ax.set_ylabel("净值", fontsize=10)
+        ax.grid(True, alpha=0.3)
+
+        # 标注最大回撤区域
+        ax2 = ax.twinx()
+        ax2.fill_between(dates, 0, strategy_dd, color="red", alpha=0.08, label="策略回撤")
+        ax2.fill_between(dates, 0, bench_dd, color="gray", alpha=0.05, label="标的回撤")
+        ax2.plot(dates, strategy_dd, color="red", linewidth=0.3, alpha=0.5)
+        ax2.plot(dates, bench_dd, color="gray", linewidth=0.3, alpha=0.5, linestyle="--")
+        ax2.set_ylabel("回撤 %", color="red", fontsize=9)
+        ax2.tick_params(axis="y", colors="red")
+        ax2.set_ylim(min(strategy_dd.min(), bench_dd.min()) * 1.1, 5)
+
+        # 合并图例
+        lines1, labels1 = ax.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax.legend(lines1 + lines2, labels1 + labels2, loc="upper left", fontsize=8)
+
+        # 绩效对比文本
+        bench_ret = benchmark[-1] - 1
+        strategy_ret = vals[-1] - 1
+        bench_annual = (1 + bench_ret) ** (252 / len(benchmark)) - 1 if len(benchmark) > 252 else 0
+        bench_dd_max = bench_dd.min()
+
+        text = (
+            f"策略: 收益={strategy_ret:.1%}  年化={best['annual_return']:.1%}  夏普={best['sharpe']:.3f}  "
+            f"最大回撤={best['max_dd']:.1%}  交易={int(best.get('n_trades', 0))}笔\n"
+            f"标的: 收益={bench_ret:.1%}  年化={bench_annual:.1%}  "
+            f"最大回撤={bench_dd_max:.1%}  策略相对超额={strategy_ret - bench_ret:.1%}"
+        )
+        ax.set_title(f"{name} — 策略 vs 标的对比", fontsize=12, fontweight="bold")
+        ax.text(0.01, -0.15, text, transform=ax.transAxes, fontsize=9,
+                bbox=dict(boxstyle="round", facecolor="lightyellow", alpha=0.8))
+
+    fig.suptitle("SuperTrend 策略 vs 标的 Buy & Hold 对比", fontsize=14, fontweight="bold")
+    plt.tight_layout()
+    fig.savefig("strategy_vs_benchmark.png", dpi=300, bbox_inches="tight")
+    print("策略对比图已保存: strategy_vs_benchmark.png")
+    plt.close(fig)
 
 
 # ============================================================
@@ -906,3 +989,4 @@ if __name__ == "__main__":
     # ---- 绘图 ----
     plot_heatmaps(all_results)
     plot_best_equity(all_results, all_best)
+    plot_strategy_vs_benchmark(all_results, all_best)
