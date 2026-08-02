@@ -19,8 +19,8 @@ from tqdm import tqdm
 # ============================================================
 # 搜索范围
 # ============================================================
-PERIODS = list(range(1, 101))                     # 1 ~ 100
-MULTIPLIERS = [round(x * 0.1, 1) for x in range(1, 101)]  # 0.1 ~ 10.0
+PERIODS = list(range(1, 201))                     # 1 ~ 100
+MULTIPLIERS = [round(x * 0.1, 1) for x in range(1, 200)]  # 0.1 ~ 10.0
 
 DATA = {
     "沪深300": "沪深300_10年日线.parquet",
