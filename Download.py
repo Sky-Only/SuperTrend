@@ -7,7 +7,7 @@ TOKEN = "768f55e6ede1f29cc6d472d244d78677a1bae0692cad8367df274893"
 ts.set_token(TOKEN)
 pro = ts.pro_api()
 
-def download_index_data(name, ts_code, api_func, years=range(2010, 2027), delay=0):
+def download_index_data(name, ts_code, api_func, years=range(2016, 2027), delay=0):
     """通用下载函数：按年分批获取指数日线数据"""
     all_data = []
     for year in years:

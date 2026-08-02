@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import metrics as mt
 
 
 # ============================================================
@@ -31,13 +32,17 @@ def calc_super_trend(df, period=10, multiplier=3):
     high, low, close = df["high"].values, df["low"].values, df["close"].values
     n = len(df)
 
-    # --- ATR (Wilder's smoothing) ---
+    # --- ATR (Wilder's original smoothing) ---
     prev_close = np.roll(close, 1)
     prev_close[0] = close[0]
     tr = np.maximum(high - low, np.abs(high - prev_close))
     tr = np.maximum(tr, np.abs(low - prev_close))
-    # Wilder's EMA: alpha = 1/period
-    atr = pd.Series(tr).ewm(alpha=1 / period, adjust=False).mean().values
+    # Wilder 原始公式: 第一条 ATR = 前 period 条 TR 的简单平均
+    #                  后续 ATR[t] = (ATR[t-1] * (period-1) + TR[t]) / period
+    atr = np.full(n, np.nan)
+    atr[period - 1] = tr[:period].mean()
+    for t in range(period, n):
+        atr[t] = (atr[t - 1] * (period - 1) + tr[t]) / period
 
     # --- 基础带 ---
     mid = (high + low) / 2
@@ -152,6 +157,7 @@ def run_backtest(df, capital=1_000_000):
                     trades.append({
                         "signal_date": signal_date,
                         "exec_date": date,
+                        "entry_date": entry_date,
                         "direction": "short",
                         "entry_price": round(entry_price, 4),
                         "exit_price": round(exec_price, 4),
@@ -175,6 +181,7 @@ def run_backtest(df, capital=1_000_000):
                     trades.append({
                         "signal_date": signal_date,
                         "exec_date": date,
+                        "entry_date": entry_date,
                         "direction": "long",
                         "entry_price": round(entry_price, 4),
                         "exit_price": round(exec_price, 4),
@@ -223,6 +230,7 @@ def run_backtest(df, capital=1_000_000):
         trades.append({
             "signal_date": None,
             "exec_date": final_date,
+            "entry_date": entry_date,
             "direction": direction,
             "entry_price": round(entry_price, 4),
             "exit_price": round(exit_px, 4),
@@ -243,54 +251,55 @@ def run_backtest(df, capital=1_000_000):
 # ============================================================
 
 def calc_metrics(trades, equity_curve, daily_returns, capital):
-    """计算回测绩效指标"""
-    rets = np.array(daily_returns)
+    """
+    计算回测绩效指标（委托给独立的 metrics 模块）
+
+    参数:
+        trades: 交易记录列表 (list of dict)
+        equity_curve: 净值曲线 (list of dict with "trade_date" and "equity")
+        daily_returns: 日收益率列表
+        capital: 初始资金
+
+    返回:
+        dict: 格式化后的指标字典（键为中文名，值为字符串或数字）
+    """
+    # 转换为 numpy 数组
     eq = np.array([e["equity"] for e in equity_curve])
+    rets = np.array(daily_returns)
 
-    total_return = (eq[-1] - capital) / capital
-    n_days = len(daily_returns)
-    n_years = n_days / 252
-    annual_return = (1 + total_return) ** (1 / n_years) - 1 if n_years > 0 else 0
+    # 提取交易 P&L 百分比
+    trade_pnl_pcts = np.array([t["pnl_pct"] for t in trades]) if trades else np.array([])
 
-    # 最大回撤
-    peak = np.maximum.accumulate(eq)
-    drawdown = (eq - peak) / peak
-    max_dd = drawdown.min()
-
-    # 夏普比率
-    rf_daily = 0.03 / 252
-    excess = rets - rf_daily
-    sharpe = np.sqrt(252) * excess.mean() / excess.std() if excess.std() > 0 else 0
-
-    # 胜率、盈亏比
+    # 计算持仓天数（exec_date - entry_date）
+    hold_days = None
     if trades:
-        wins = [t for t in trades if t["pnl"] > 0]
-        losses = [t for t in trades if t["pnl"] <= 0]
-        win_rate = len(wins) / len(trades)
-        avg_win = np.mean([t["pnl_pct"] for t in wins]) if wins else 0
-        avg_loss = np.mean([t["pnl_pct"] for t in losses]) if losses else 0
-        profit_factor = abs(avg_win / avg_loss) if avg_loss != 0 else float("inf")
-        total_trades = len(trades)
-    else:
-        win_rate = avg_win = avg_loss = profit_factor = total_trades = 0
+        hd_list = []
+        for t in trades:
+            ed = t.get("entry_date")
+            xd = t.get("exec_date")
+            if ed is not None and xd is not None:
+                hd_list.append((pd.Timestamp(xd) - pd.Timestamp(ed)).days)
+        if hd_list:
+            hold_days = np.array(hd_list, dtype=float)
 
-    # 卡尔玛比率
-    calmar = annual_return / abs(max_dd) if max_dd != 0 else 0
+    # 调用独立指标模块
+    raw = mt.calc_all_metrics(eq, rets, trade_pnl_pcts, capital, hold_days=hold_days)
 
+    # 格式化为展示用 dict（保持与之前版本的兼容性）
     return {
         "初始资金": capital,
-        "最终净值": round(eq[-1], 2),
-        "总收益率": f"{total_return:.2%}",
-        "年化收益率": f"{annual_return:.2%}",
-        "最大回撤": f"{max_dd:.2%}",
-        "夏普比率": round(sharpe, 2),
-        "卡尔玛比率": round(calmar, 2),
-        "交易次数": total_trades,
-        "胜率": f"{win_rate:.2%}",
-        "平均盈利": f"{avg_win:.2%}",
-        "平均亏损": f"{avg_loss:.2%}",
-        "盈亏比": round(profit_factor, 2),
-        "回测天数": n_days,
+        "最终净值": raw["final_equity"],
+        "总收益率": f"{raw['total_return']:.2%}",
+        "年化收益率": f"{raw['annual_return']:.2%}",
+        "最大回撤": f"{raw['max_dd']:.2%}",
+        "夏普比率": round(raw["sharpe"], 2),
+        "卡尔玛比率": round(raw["calmar"], 2),
+        "交易次数": raw["n_trades"],
+        "胜率": f"{raw['win_rate']:.2%}",
+        "平均盈利": f"{raw['avg_win']:.2%}",
+        "平均亏损": f"{raw['avg_loss']:.2%}",
+        "盈亏比": round(raw["profit_factor"], 2),
+        "回测天数": raw["n_days"],
     }
 
 
@@ -302,9 +311,22 @@ import matplotlib
 matplotlib.use("Agg")  # 非交互式后端
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib import font_manager as fm
+import os
 
-# 设置中文字体
-plt.rcParams["font.sans-serif"] = ["Heiti SC", "STHeiti", "Arial Unicode MS", "DejaVu Sans"]
+# ---- 注册本地字体（跨平台中文支持）----
+_font_path = os.path.join(os.path.dirname(__file__), "fonts", "NotoSansSC-Regular.ttf")
+if os.path.exists(_font_path):
+    fm.fontManager.addfont(_font_path)
+    _cjk_font_name = fm.FontProperties(fname=_font_path).get_name()
+else:
+    _cjk_font_name = None
+
+plt.rcParams["font.sans-serif"] = ([_cjk_font_name] if _cjk_font_name else []) + [
+    "Microsoft YaHei", "SimHei", "Noto Sans SC",
+    "Heiti SC", "STHeiti", "WenQuanYi Micro Hei",
+    "Arial Unicode MS", "DejaVu Sans",
+]
 plt.rcParams["axes.unicode_minus"] = False
 
 
