@@ -983,8 +983,8 @@ if __name__ == "__main__":
             print(f"    N={int(row['period']):3d}  M={row['multiplier']:4.1f}  "
                   f"收益={row['total_return']:7.2%}  年化={row['annual_return']:7.2%}  "
                   f"回撤={row['max_dd']:7.2%}  DD天={int(row.get('max_dd_days', 0)):3d}  "
-                  f"夏普={row['sharpe']:7.3f}  胜率={row.get('win_rate', 0):5.1%}  "
-                  f"盈亏比={row.get('profit_factor', 0):5.2f}")
+                  f"夏普={row['sharpe']:7.3f}  交易={int(row.get('n_trades', 0)):3d}笔  "
+                  f"胜率={row.get('win_rate', 0):5.1%}  盈亏比={row.get('profit_factor', 0):5.2f}")
 
     # ---- 绘图 ----
     plot_heatmaps(all_results)
