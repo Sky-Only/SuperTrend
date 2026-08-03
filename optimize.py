@@ -46,8 +46,8 @@ import metrics as mt
 # ============================================================
 # 搜索范围
 # ============================================================
-PERIODS = list(range(5, 100))                              # 1 ~ 500
-MULTIPLIERS = [round(x * 0.1, 1) for x in range(5, 100)]   # 0.1 ~ 50.0
+PERIODS = list(range(5, 100, 5))                              # 1 ~ 500
+MULTIPLIERS = [round(x * 0.2, 1) for x in range(5, 30)]   # 0.1 ~ 50.0
 
 DATA = {
     "沪深300": "沪深300_10年日线.parquet",
