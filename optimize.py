@@ -47,7 +47,7 @@ import metrics as mt
 # 搜索范围
 # ============================================================
 PERIODS = list(range(5, 100))                              # 1 ~ 500
-MULTIPLIERS = [round(x * 0.1, 1) for x in range(5, 50)]   # 0.1 ~ 50.0
+MULTIPLIERS = [round(x * 0.1, 1) for x in range(5, 100)]   # 0.1 ~ 50.0
 
 DATA = {
     "沪深300": "沪深300_10年日线.parquet",
@@ -721,10 +721,10 @@ def plot_heatmaps(all_results, output_dir="heatmaps"):
             else:
                 val_str = str(best_val)
 
-            ax.text(0.98, 0.02,
-                    f"最佳夏普 N={int(best_sharpe['period'])}, M={best_sharpe['multiplier']:.1f}\n{title}={val_str}",
-                    transform=ax.transAxes, fontsize=8, ha="right", va="bottom",
-                    bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
+            # ax.text(0.98, 0.02,
+            #         f"最佳夏普 N={int(best_sharpe['period'])}, M={best_sharpe['multiplier']:.1f}\n{title}={val_str}",
+            #         transform=ax.transAxes, fontsize=8, ha="right", va="bottom",
+            #         bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
 
             if is_pct:
                 plt.colorbar(im, ax=ax, format=mticker.PercentFormatter(1.0))
