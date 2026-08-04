@@ -7,7 +7,7 @@ TOKEN = "768f55e6ede1f29cc6d472d244d78677a1bae0692cad8367df274893"
 ts.set_token(TOKEN)
 pro = ts.pro_api()
 
-def download_index_data(name, ts_code, api_func, years=range(2016, 2027), delay=0):
+def download_index_data(name, ts_code, api_func, years=range(2021, 2027), delay=0):
     """通用下载函数：按年分批获取指数日线数据"""
     all_data = []
     for year in years:
@@ -34,7 +34,7 @@ def download_index_data(name, ts_code, api_func, years=range(2016, 2027), delay=
 # 2. 下载沪深300
 print("【沪深300】")
 df_hs300 = download_index_data(
-    name="沪深300_10年日线",
+    name="沪深300_2021-2026.7年日线",
     ts_code="000300.SH",
     api_func=pro.index_daily,
 )
@@ -42,7 +42,7 @@ df_hs300 = download_index_data(
 # 3. 下载标普500
 print("【标普500】")
 df_spx = download_index_data(
-    name="标普500_10年日线",
+    name="标普500_2021-2026.7年日线",
     ts_code="SPX",
     api_func=pro.index_global,
     delay=7,  # index_global 限频 10次/分钟，间隔7秒
@@ -51,7 +51,7 @@ df_spx = download_index_data(
 # 4. 下载沪金期货
 print("【沪金期货】")
 df_gold = download_index_data(
-    name="沪金期货_10年日线",
+    name="沪金期货_2021-2026.7年日线",
     ts_code="AU.SHF",
     api_func=pro.fut_daily,
 )

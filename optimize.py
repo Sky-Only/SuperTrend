@@ -46,13 +46,19 @@ import metrics as mt
 # ============================================================
 # 搜索范围
 # ============================================================
-PERIODS = list(range(5, 100, 5))                              # 1 ~ 500
-MULTIPLIERS = [round(x * 0.2, 1) for x in range(5, 30)]   # 0.1 ~ 50.0
+PERIODS = list(range(1, 60))                              # 1 ~ 500
+MULTIPLIERS = [round(x * 0.1, 1) for x in range(1, 60)]   # 0.1 ~ 50.0
 
 DATA = {
-    "沪深300": "沪深300_10年日线.parquet",
-    "标普500": "标普500_10年日线.parquet",
-    "沪金期货": "沪金期货_10年日线.parquet",
+    # "沪深300": "沪深300_10年日线.parquet",
+    # "标普500": "标普500_10年日线.parquet",
+    # "沪金期货": "沪金期货_10年日线.parquet",
+    # "沪深300": "沪深300_2016-2020年日线.parquet",
+    # "标普500": "标普500_2016-2020年日线.parquet",
+    # "沪金期货": "沪金期货_2016-2020年日线.parquet",
+    "沪深300": "沪深300_2021-2026.7年日线.parquet",
+    "标普500": "标普500_2021-2026.7年日线.parquet",
+    "沪金期货": "沪金期货_2021-2026.7年日线.parquet",
 }
 CAPITAL = 1_000_000
 
@@ -977,8 +983,8 @@ if __name__ == "__main__":
     # ---- Top 10 打印 ----
     for name in DATA:
         df_r = all_results[name]["results"]
-        top10 = df_r.nlargest(10, "sharpe")
-        print(f"\n  {name} Top 10 (按夏普):")
+        top10 = df_r.nlargest(100, "sharpe")
+        print(f"\n  {name} Top 100 (按夏普):")
         for _, row in top10.iterrows():
             print(f"    N={int(row['period']):3d}  M={row['multiplier']:4.1f}  "
                   f"收益={row['total_return']:7.2%}  年化={row['annual_return']:7.2%}  "
