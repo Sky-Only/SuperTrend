@@ -7,7 +7,7 @@ TOKEN = "768f55e6ede1f29cc6d472d244d78677a1bae0692cad8367df274893"
 ts.set_token(TOKEN)
 pro = ts.pro_api()
 
-def download_index_data(name, ts_code, api_func, years=range(2021, 2027), delay=0):
+def download_index_data(name, ts_code, api_func, years=range(2016, 2021), delay=0):
     """通用下载函数：按年分批获取指数日线数据"""
     all_data = []
     for year in years:
@@ -31,29 +31,37 @@ def download_index_data(name, ts_code, api_func, years=range(2021, 2027), delay=
     return df
 
 
-# 2. 下载沪深300
-print("【沪深300】")
-df_hs300 = download_index_data(
-    name="沪深300_2021-2026.7年日线",
-    ts_code="000300.SH",
-    api_func=pro.index_daily,
-)
+# # 2. 下载沪深300
+# print("【沪深300】")
+# df_hs300 = download_index_data(
+#     name="沪深300_2021-2026.7年日线",
+#     ts_code="000300.SH",
+#     api_func=pro.index_daily,
+# )
 
-# 3. 下载标普500
-print("【标普500】")
-df_spx = download_index_data(
-    name="标普500_2021-2026.7年日线",
-    ts_code="SPX",
-    api_func=pro.index_global,
-    delay=7,  # index_global 限频 10次/分钟，间隔7秒
-)
+# # 3. 下载标普500
+# print("【标普500】")
+# df_spx = download_index_data(
+#     name="标普500_2021-2026.7年日线",
+#     ts_code="SPX",
+#     api_func=pro.index_global,
+#     delay=7,  # index_global 限频 10次/分钟，间隔7秒
+# )
 
-# 4. 下载沪金期货
-print("【沪金期货】")
-df_gold = download_index_data(
-    name="沪金期货_2021-2026.7年日线",
-    ts_code="AU.SHF",
-    api_func=pro.fut_daily,
+# # 4. 下载沪金期货
+# print("【沪金期货】")
+# df_gold = download_index_data(
+#     name="沪金期货_2021-2026.7年日线",
+#     ts_code="AU.SHF",
+#     api_func=pro.fut_daily,
+# )
+
+# 5. 下载黄金ETF (华安黄金ETF 518880)
+print("【黄金ETF】")
+df_gold_etf = download_index_data(
+    name="黄金ETF_2016-2020年日线",
+    ts_code="518880.SH",
+    api_func=pro.fund_daily,
 )
 
 print("\n全部下载完成！")
