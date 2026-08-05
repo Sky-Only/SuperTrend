@@ -10,6 +10,7 @@ MA + SuperTrend 组合策略
 
 import numpy as np
 import pandas as pd
+import metrics as mt
 from backtest import (
     load_data, calc_super_trend, run_backtest, calc_metrics,
     generate_report,
@@ -194,16 +195,96 @@ def run_backtest_combined(df, capital=1_000_000):
 
 
 # ============================================================
+# 3. 研报专用综合图
+# ============================================================
+
+def plot_combined_report(df, trades, equity_curve, name, st_period, st_mult,
+                         ma_fast, ma_slow, capital, output_dir,
+                         output_file="研报_MA_ST组合策略全览.png"):
+    """
+    研报专用图：MA + ST 组合策略价格全览图
+
+    内容:
+      - 收盘价 / MA快线 / MA慢线 / SuperTrend线
+      - 策略转折点标记（▲绿=买入开多, ▼红=卖出开空）
+      - 趋势背景色（多头=淡绿, 空头=淡红）→ 直观看出何时处于什么策略
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as mticker
+
+    fig, ax_price = plt.subplots(figsize=(18, 9))
+
+    dates = df["trade_date"]
+    close = df["close"].values
+    ma_f = df["ma_fast"].values
+    ma_s = df["ma_slow"].values
+    trend = df["trend"].values
+    n = len(df)
+
+    # 趋势背景色（ST 多头/空头区间）
+    for i in range(n - 1):
+        if trend[i] == 1:
+            ax_price.axvspan(dates.iloc[i], dates.iloc[i + 1], color="green", alpha=0.05, lw=0)
+        elif trend[i] == -1:
+            ax_price.axvspan(dates.iloc[i], dates.iloc[i + 1], color="red", alpha=0.05, lw=0)
+
+    ax_price.plot(dates, close, color="#2c3e50", linewidth=0.7, alpha=0.75, label="标的收盘价")
+    ax_price.plot(dates, ma_f, color="#0099ff", linewidth=1.3, label=f"MA快线 ({ma_fast})")
+    ax_price.plot(dates, ma_s, color="#ff7700", linewidth=1.3, label=f"MA慢线 ({ma_slow})")
+    ax_price.plot(dates, df["super_trend"].values, color="#e74c3c", linewidth=0.9, alpha=0.55, label="SuperTrend")
+
+    # 策略转折点标记
+    # direction=="short" → 平空开多 → 买入信号（绿▲）
+    # direction=="long"  → 平多开空 → 卖出信号（红▼）
+    buy_plotted = False
+    sell_plotted = False
+    for t in trades:
+        ex_date = t["exec_date"]
+        if ex_date is None:
+            continue
+        mask = df["trade_date"] == ex_date
+        if not mask.any():
+            continue
+        px_at = df.loc[mask, "close"].values[0]
+        if t["direction"] == "short":
+            ax_price.scatter(ex_date, px_at, marker="^", color="#27ae60", s=110, zorder=6,
+                             edgecolors="white", linewidth=0.8,
+                             label="买入 (平空开多)" if not buy_plotted else None)
+            buy_plotted = True
+        else:
+            ax_price.scatter(ex_date, px_at, marker="v", color="#c0392b", s=110, zorder=6,
+                             edgecolors="white", linewidth=0.8,
+                             label="卖出 (平多开空)" if not sell_plotted else None)
+            sell_plotted = True
+
+    ax_price.set_ylabel("价格", fontsize=12)
+    ax_price.set_xlabel("日期", fontsize=12)
+    ax_price.legend(loc="upper left", fontsize=10, framealpha=0.9)
+    ax_price.grid(True, alpha=0.3)
+    ax_price.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.0f"))
+    ax_price.set_title(
+        f"{name} — MA + SuperTrend 组合策略 (N={st_period}, M={st_mult}, MA{ma_fast}/{ma_slow})",
+        fontsize=14, fontweight="bold"
+    )
+
+    fig.tight_layout()
+    fig.savefig(f"{output_dir}/{output_file}", dpi=300, bbox_inches="tight")
+    print(f"  研报图已保存: {output_dir}/{output_file}")
+    plt.close(fig)
+
+
+# ============================================================
 # 3. 入口
 # ============================================================
 
 if __name__ == "__main__":
     # ==================== 在这里修改配置 ====================
-    DATA_FILE = "沪深300_10年日线.parquet"   # 数据文件
-    DATA_NAME = "沪深300"
+    DATA_NAME = "标普500"
+    DATA_FILE = f"{DATA_NAME}_10年日线.parquet"   # 数据文件
+    
 
     # SuperTrend 参数
-    ST_PERIOD = 43
+    ST_PERIOD = 18
     ST_MULT   = 4.9
 
     # MA 参数
@@ -224,33 +305,109 @@ if __name__ == "__main__":
 
     # 3. 纯 ST 策略（对比基准）
     trades_st, eq_st, rets_st = run_backtest(df, capital=CAPITAL)
-    metrics_st = calc_metrics(trades_st, eq_st, rets_st, CAPITAL)
 
     # 4. ST + MA 组合策略
     trades_cb, eq_cb, rets_cb = run_backtest_combined(df, capital=CAPITAL)
-    metrics_cb = calc_metrics(trades_cb, eq_cb, rets_cb, CAPITAL)
 
-    # 5. 控制台对比
-    print(f"\n{'='*70}")
-    print(f"  策略对比")
-    print(f"{'='*70}")
-    print(f"  {'指标':<16} {'纯ST (N={ST_PERIOD},M={ST_MULT})':>24} {'ST+MA (MA{MA_FAST}/{MA_SLOW})':>24}")
-    print(f"  {'-'*66}")
-    keys = ["总收益率", "年化收益率", "最大回撤", "夏普比率", "交易次数", "胜率", "盈亏比"]
-    for k in keys:
-        print(f"  {k:<16} {metrics_st[k]:>24} {metrics_cb[k]:>24}")
+    # 5. 计算原始指标用于对比
+    def _raw_metrics(trades, eq, rets, capital):
+        eq_arr = np.array([e["equity"] for e in eq])
+        rets_arr = np.array(rets)
+        pnl_pcts = np.array([t["pnl_pct"] for t in trades]) if trades else np.array([])
+        hd = None
+        if trades:
+            hd_list = []
+            for t in trades:
+                ed = t.get("entry_date")
+                xd = t.get("exec_date")
+                if ed is not None and xd is not None:
+                    hd_list.append((pd.Timestamp(xd) - pd.Timestamp(ed)).days)
+            if hd_list:
+                hd = np.array(hd_list, dtype=float)
+        return mt.calc_all_metrics(eq_arr, rets_arr, pnl_pcts, capital, hold_days=hd)
+
+    rm_st = _raw_metrics(trades_st, eq_st, rets_st, CAPITAL)
+    rm_cb = _raw_metrics(trades_cb, eq_cb, rets_cb, CAPITAL)
+
+    # 控制台对比
+    print(f"\n{'='*90}")
+    print(f"  {DATA_NAME} — 策略对比: 纯ST vs ST+MA")
+    print(f"{'='*90}")
+    print(f"  ST: N={ST_PERIOD}, M={ST_MULT}    MA: 快线={MA_FAST}, 慢线={MA_SLOW}")
+    print(f"  {'指标':<16} {'纯ST':>16} {'ST+MA':>16} {'差值':>16} {'方向':>8}")
+
+    rows = [
+        ("总收益率",   "total_return",  "pct",  "↑"),
+        ("年化收益率", "annual_return",  "pct",  "↑"),
+        ("最终净值",   "final_equity",   "int",  "↑"),
+        ("最大回撤",   "max_dd",         "pct",  "↑"),
+        ("回撤持续天数","max_dd_days",   "int",  "↓"),
+        ("年化波动率", "daily_vol",      "pct",  "↓"),
+        ("夏普比率",   "sharpe",         "num",  "↑"),
+        ("卡尔玛比率", "calmar",         "num",  "↑"),
+        ("交易次数",   "n_trades",       "int",  "—"),
+        ("胜率",       "win_rate",       "pct",  "↑"),
+        ("平均盈利",   "avg_win",        "pct",  "↑"),
+        ("平均亏损",   "avg_loss",       "pct",  "↓"),
+        ("盈亏比",     "profit_factor",  "num",  "↑"),
+        ("平均持仓天数","avg_hold_days",  "num",  "—"),
+        ("回测天数",   "n_days",         "int",  "—"),
+    ]
+
+    def _fmt(val, kind):
+        if kind == "pct":
+            return f"{val:>15.2%}"
+        elif kind == "int":
+            return f"{val:>15,.0f}" if val >= 1000 else f"{val:>15.0f}"
+        else:
+            return f"{val:>15.2f}"
+
+    for label, key, kind, better in rows:
+        v_st = rm_st[key]
+        v_cb = rm_cb[key]
+        diff = v_cb - v_st
+        if kind in ("pct",):
+            diff_str = f"{diff:>+15.2%}"
+        elif kind == "int":
+            diff_str = f"{diff:>+15,.0f}" if abs(diff) >= 1000 else f"{diff:>+15.0f}"
+        else:
+            diff_str = f"{diff:>+15.2f}"
+
+        # 判断哪个更好
+        if better == "↑":
+            winner = "ST" if v_st > v_cb else ("MA" if v_cb > v_st else "  —")
+        elif better == "↓":
+            winner = "ST" if v_st < v_cb else ("MA" if v_cb < v_st else "  —")
+        else:
+            winner = "  —"
+
+        print(f"  {label:<16}{_fmt(v_st, kind)} {_fmt(v_cb, kind)} {diff_str}  {winner}")
+
+    print(f"  {'-'*88}")
+    print(f"  ↑ = 越大越好    ↓ = 越小越好    — = 中性指标")
+    print(f"  方向列: 哪个策略在该指标上更优")
 
     # 6. 生成两套报告
+    output_st = f"{DATA_NAME}_st{ST_PERIOD}x{ST_MULT}"
+    output_cb = f"{DATA_NAME}_ma{MA_FAST}x{MA_SLOW}_st{ST_PERIOD}x{ST_MULT}"
+
     print(f"\n{'='*70}")
-    print(f"  生成纯ST策略报告")
+    print(f"  生成纯ST策略报告 → {output_st}/")
     print(f"{'='*70}")
     generate_report(df, trades_st, eq_st, rets_st, CAPITAL,
                     DATA_NAME, ST_PERIOD, ST_MULT,
-                    output_dir="output_st")
+                    output_dir=output_st)
 
     print(f"\n{'='*70}")
-    print(f"  生成ST+MA组合策略报告")
+    print(f"  生成ST+MA组合策略报告 → {output_cb}/")
     print(f"{'='*70}")
     generate_report(df, trades_cb, eq_cb, rets_cb, CAPITAL,
                     f"{DATA_NAME}_MA{MA_FAST}/{MA_SLOW}", ST_PERIOD, ST_MULT,
-                    output_dir="output_ma_st")
+                    output_dir=output_cb)
+
+    # 7. 研报专用综合图（MA + ST 组合策略全览）
+    print(f"\n{'='*70}")
+    print(f"  生成研报综合图")
+    print(f"{'='*70}")
+    plot_combined_report(df, trades_cb, eq_cb, DATA_NAME, ST_PERIOD, ST_MULT,
+                         MA_FAST, MA_SLOW, CAPITAL, output_dir=output_cb)
