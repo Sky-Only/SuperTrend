@@ -404,16 +404,17 @@ def plot_combined_report(df, trades, name, st_period, st_mult,
 
 if __name__ == "__main__":
     # ==================== 在这里修改配置 ====================
-    DATA_FILE = "沪深300_10年日线.parquet"   # 数据文件
-    DATA_NAME = "沪深300"
+    DATA_NAME = "黄金ETF"
+    DATA_FILE = f"{DATA_NAME}_10年日线.parquet"   # 数据文件
+    
 
     # SuperTrend 参数
-    ST_PERIOD = 43
-    ST_MULT   = 4.9
+    ST_PERIOD = 8
+    ST_MULT   = 4.4
 
     # ADX 参数
     ADX_PERIOD   = 14       # ADX 计算周期
-    ADX_THRESHOLD = 5.0    # 趋势强度阈值 (ADX > 阈值才算强趋势)
+    ADX_THRESHOLD = 10.0    # 趋势强度阈值 (ADX > 阈值才算强趋势)
     REENTER     = False      # 空仓后 ADX 恢复且 ST/DI 同向时, 立即重新入场 (False = 等下一次 ST 翻转)
 
     CAPITAL   = 1_000_000
@@ -437,9 +438,15 @@ if __name__ == "__main__":
 
     # 5. 计算原始指标用于对比
     def _flat_stats(rets):
-        """空仓统计: 日收益为 0 的天数 = 无持仓天数 (首日补的 0 不算)"""
+        """
+        空仓统计: 日收益接近 0 的天数 = 无持仓天数 (首日补的 0 不算)
+
+        注意: 空仓期间 mark_value = equity (未舍入浮点), 而 prev_val 是
+        equity_curve 里舍入到 2 位小数的值, 两者相减会产生 ~1e-9 的
+        舍入噪声, 导致空仓日收益不是精确 0, 故用容差 1e-6 判断。
+        """
         arr = np.array(rets)
-        flat = int((arr[1:] == 0).sum())
+        flat = int((np.abs(arr[1:]) < 1e-6).sum())
         total = max(len(arr) - 1, 1)
         return flat, flat / total
 

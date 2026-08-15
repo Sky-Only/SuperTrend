@@ -889,10 +889,10 @@ def generate_report(df, trades, equity_curve, daily_returns, capital, name, peri
 
 if __name__ == "__main__":
     # ==================== 在这里修改配置 ====================
-    DATA_FILE = "标普500_10年日线.parquet"   # 数据文件路径
-    DATA_NAME = "标普500"                    # 品种名称（用于图表标题）
-    PERIOD = 56                              # SuperTrend ATR 周期
-    MULTIPLIER = 7.2                          # SuperTrend 乘数 M
+    DATA_FILE = "黄金ETF_10年日线.parquet"   # 数据文件路径
+    DATA_NAME = "黄金ETF"                    # 品种名称（用于图表标题）
+    PERIOD = 10                              # SuperTrend ATR 周期
+    MULTIPLIER = 3                          # SuperTrend 乘数 M
     CAPITAL = 1_000_000                      # 初始资金
     OUTPUT_DIR = f"标普500 {PERIOD},{MULTIPLIER}回测结果"           # 报告输出目录
     # ========================================================
