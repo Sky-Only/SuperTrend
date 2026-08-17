@@ -65,7 +65,7 @@ except ImportError:
 # ============================================================
 # 配置
 # ============================================================
-DATA_NAME = "沪深300"
+DATA_NAME = "中证2000"
 DATA_FILE = f"{DATA_NAME}_10年日线.parquet"
 CAPITAL = 1_000_000
 
@@ -82,12 +82,12 @@ FEE_RATE    = 0.0003     # 单边手续费 (万三)
 # ATR_PERIOD_RANGE = (5, 20, 1)     # 吊灯 ATR 周期
 # HV_THRESHOLD_RANGE = (0.10, 0.40, 0.05)  # 波动率止盈阈值 (年化)
 
-ST_PERIOD_RANGE = (5, 54, 2)        # SuperTrend 周期
-ST_MULT_RANGE   = (0.9, 4.9, 0.2)   # SuperTrend 乘数
-N_RANGE         = (12, 42, 2)      # 吊灯最高价回看上限天数
-K_RANGE         = (0.5, 5.5, 0.2)   # 吊灯 ATR 倍数
-ATR_PERIOD_RANGE = (4, 56, 1)     # 吊灯 ATR 周期
-HV_THRESHOLD_RANGE = (0.01, 0.99, 0.05)  # 波动率止盈阈值 (年化)
+ST_PERIOD_RANGE = (9, 9, 1)        # SuperTrend 周期
+ST_MULT_RANGE   = (3.6, 3.6, 0.2)   # SuperTrend 乘数
+N_RANGE         = (2, 72, 2)      # 吊灯最高价回看上限天数
+K_RANGE         = (0.5, 6.5, 0.2)   # 吊灯 ATR 倍数
+ATR_PERIOD_RANGE = (6, 76, 2)     # 吊灯 ATR 周期
+HV_THRESHOLD_RANGE = (0.99, 0.99, 0.05)  # 波动率止盈阈值 (年化)
 # ========================================================
 
 
@@ -112,7 +112,7 @@ HV_THRESHOLDS = [round(v, 2) for v in _arange(*HV_THRESHOLD_RANGE)]
 # ---- 固定常量 ----
 USE_MA = False         # True=MA确认入场; False=纯SuperTrend翻多
 USE_CHANDELIER = True  # True=吊灯止损离场
-USE_VOLATILITY = True  # True=波动率止盈离场 (HV超阈值)
+USE_VOLATILITY = False  # True=波动率止盈离场 (HV超阈值)
 HV_WINDOW = 20         # 波动率 HV 计算窗口 (交易日)
 MA_FAST = 5            # MA 快线 (USE_MA=True 时生效)
 MA_SLOW = 20           # MA 慢线 (USE_MA=True 时生效)

@@ -251,12 +251,12 @@ def plot_chandelier_report(df, trades, eq, name, st_period, st_mult, ma_fast, ma
 
 if __name__ == "__main__":
     # ==================== 在这里修改配置 ====================
-    DATA_NAME = "沪深300"
+    DATA_NAME = "中证2000"
     DATA_FILE = f"{DATA_NAME}_10年日线.parquet"   # 数据文件
 
     # SuperTrend 参数 (入场翻多信号)
-    ST_PERIOD = 34   # SuperTrend 周期
-    ST_MULT   = 4.9  # SuperTrend 乘数 M
+    ST_PERIOD = 9   # SuperTrend 周期
+    ST_MULT   = 3.6  # SuperTrend 乘数 M
 
     # MA 过滤开关 (True=开启MA多头确认, False=纯SuperTrend开仓)
     USE_MA = False
@@ -269,16 +269,16 @@ if __name__ == "__main__":
     USE_CHANDELIER = True
 
     # 吊灯止损参数 (离场, USE_CHANDELIER=True 时生效)
-    N = 5000        # 最高价回看上限天数 (自入场起算)
-    ATR_PERIOD = 15  # ATR 周期 (独立于 N)
-    K = 5.5       # ATR 倍数
+    N = 3000        # 最高价回看上限天数 (自入场起算)
+    ATR_PERIOD = 54  # ATR 周期 (独立于 N)
+    K = 2.3       # ATR 倍数
 
     # 波动率止盈开关 (True=HV超阈值离场)
     USE_VOLATILITY = False
 
     # 波动率止盈参数 (USE_VOLATILITY=True 时生效)
     HV_WINDOW = 20       # HV 计算窗口 (交易日)
-    HV_THRESHOLD = 0.5  # HV 止盈阈值 (年化, 0.30=30%)
+    HV_THRESHOLD = 0.6  # HV 止盈阈值 (年化, 0.30=30%)
 
     CAPITAL = 1_000_000
 
