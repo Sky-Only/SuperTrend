@@ -7,7 +7,7 @@ TOKEN = "768f55e6ede1f29cc6d472d244d78677a1bae0692cad8367df274893"
 ts.set_token(TOKEN)
 pro = ts.pro_api()
 
-def download_index_data(name, ts_code, api_func, start_year=2021, end_date="20260731", delay=0):
+def download_index_data(name, ts_code, api_func, start_year=2016, end_date="20260731", delay=0):
     """
     通用下载函数：按年分批获取日线数据
 
@@ -75,9 +75,41 @@ def download_index_data(name, ts_code, api_func, start_year=2021, end_date="2026
 # 5. 下载黄金ETF (华安黄金ETF 518880)
 print("【黄金ETF】")
 df_gold_etf = download_index_data(
-    name="黄金ETF_2021-2026.7年日线",
+    name="黄金ETF_10年日线",
     ts_code="518880.SH",
     api_func=pro.fund_daily,
+)
+
+# 6. 下载创业板指 (399006.SZ)
+print("【创业板指】")
+df_cyb = download_index_data(
+    name="创业板指_10年日线",
+    ts_code="399006.SZ",
+    api_func=pro.index_daily,
+)
+
+# 7. 下载中证1000 (000852.SH)
+print("【中证1000】")
+df_zz1000 = download_index_data(
+    name="中证1000_10年日线",
+    ts_code="000852.SH",
+    api_func=pro.index_daily,
+)
+
+# 8. 下载中证2000 (932000.CSI)
+print("【中证2000】")
+df_zz2000 = download_index_data(
+    name="中证2000_10年日线",
+    ts_code="932000.CSI",
+    api_func=pro.index_daily,
+)
+
+# 9. 下载科创50 (000688.SH)
+print("【科创50】")
+df_kc50 = download_index_data(
+    name="科创50_10年日线",
+    ts_code="000688.SH",
+    api_func=pro.index_daily,
 )
 
 print("\n全部下载完成！")
